@@ -3,10 +3,11 @@ package org.example.controller;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -14,12 +15,12 @@ import java.net.URL;
 import java.time.LocalDate;
 import java.util.Scanner;
 
-@RestController
+@Controller
 @RequestMapping("/difference")
-public class Controller {
+public class MainController {
 
     @GetMapping("/{value}")
-    public boolean difference(@PathVariable String value) throws IOException, ParseException {
+    public String difference(@PathVariable String value, Model model) throws IOException, ParseException {
         LocalDate date = LocalDate.now();
         LocalDate yesterday = date.minusDays(1);
 
@@ -35,10 +36,42 @@ public class Controller {
         Double valueYesterday = getValue(urlYesterday, value);
         Double valueToday = getValue(urlToday, value);
 
-        return valueToday > valueYesterday;
+        String url;
+
+        if (valueToday > valueYesterday){
+            url = getURLofGIF("rich");
+        }else{
+            url = getURLofGIF("broke");
+        }
+
+        model.addAttribute("url", url);
+        return "gif";
     }
 
     public Double getValue(URL url, String value) throws IOException, ParseException {
+
+        JSONObject jsonObject = getJson(url);
+
+        //Get the required object from the above created object
+        JSONObject obj = (JSONObject) jsonObject.get("rates");
+        return (Double) obj.get(value);
+    }
+
+    public String getURLofGIF(String tag) throws IOException, ParseException {
+        URL url = new URL("https://api.giphy.com/v1/gifs/random" +
+                "?api_key=nxZ4jNQlzBg0SALb2om92bZmLDS2df98" +
+                "&tag=" + tag + "&rating=g");
+
+        JSONObject jsonObject = getJson(url);
+        JSONObject obj = (JSONObject) jsonObject.get("data");
+        obj = (JSONObject) obj.get("images");
+        obj = (JSONObject) obj.get("fixed_width_still");
+        String urlOfGif = (String) obj.get("url");
+
+        return urlOfGif;
+    }
+
+    public JSONObject getJson(URL url) throws IOException, ParseException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.connect();
@@ -58,13 +91,9 @@ public class Controller {
 
             scanner.close();
 
-            //Using the JSON simple library parse the string into a json object
             JSONParser parse = new JSONParser();
-            JSONObject data_obj = (JSONObject) parse.parse(inline.toString());
 
-            //Get the required object from the above created object
-            JSONObject obj = (JSONObject) data_obj.get("rates");
-            return (Double) obj.get(value);
+            return (JSONObject) parse.parse(inline.toString());
         }
     }
 }
